@@ -129,3 +129,23 @@ Change the parameters to the incremental values (`metric_days_in_scope = 2`, `ac
   - deploy the vault with a private endpoint, run Terraform from a network that can reach it, and give FUAM a Fabric managed private endpoint to the vault.
 - **Existing FUAM installs:** if a `FUAM` workspace or the default `fuam … admin` connections already exist, the apply fails with `WorkspaceNameAlreadyExists` / `DuplicateConnectionName`. Either deploy side by side by setting `fuam_workspace_name`, `pbi_connection_name` and `fabric_connection_name` (the uploaded notebook is patched to match), or `terraform import` the existing items. Importing re-points the connection credentials to the Terraform-managed service principal.
 - **Plan files are sensitive:** `terraform plan -out tfplan` writes a binary plan that can contain secret values. It is git-ignored; never commit it, and delete it after applying.
+
+## PIM (just-in-time roles) risk
+
+Scheduled FUAM pipelines run unattended as the **user who last modified the pipeline**, and notebooks run as the **notebook owner**. A PIM role is only active for a limited window, so anything that depends on the owner's role fails on days when the role isn't activated.
+
+| Pipeline part | Identity used | Affected by PIM? |
+|---|---|---|
+| Admin API loads through the Terraform-created connections | FUAM service principal | No |
+| Scanner API with the `optional_keyvault_*` parameters set | FUAM service principal (secret from Key Vault) | No |
+| Scanner API without Key Vault (`enable_key_vault = false`) | Notebook owner | **Yes:** needs the Fabric Administrator role to be active |
+| Capacity metrics load (sempy against the Metrics App) | Notebook owner | **Yes:** needs access to the `FUAM Capacity Metrics` workspace; fails if that access is PIM-eligible only |
+| `Check_FUAM_Version` (update check) | Notebook owner | No: anonymous read of a public GitHub file, plus a write to `FUAM_Lakehouse` (workspace Contributor or higher). Needs outbound access to `raw.githubusercontent.com`. |
+| Re-running `Deploy_FUAM` (update) | Interactive user | Activate roles before running. Use the same user who did the original install. |
+
+No Azure RBAC role is needed to run FUAM or to check for updates. Azure roles only matter for Terraform (Key Vault) and for resizing, pausing or resuming an F capacity.
+
+Mitigations:
+- Keep the pipeline owner's **Fabric Administrator** role and Metrics App workspace access **permanent** (or grant access through `sg-fuam-admins` membership, which isn't time-bound).
+- Keep `enable_key_vault = true` and set the `optional_keyvault_*` parameters so the Scanner API runs as the service principal.
+- Configure failure notifications on `Load_FUAM_Data_E2E` so a lapsed role is noticed before the Metrics App's ~14-day retention window is lost.
