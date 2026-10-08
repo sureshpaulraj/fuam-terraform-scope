@@ -1,0 +1,20 @@
+tenant_id             = "00000000-0000-0000-0000-000000000000"
+azure_subscription_id = "00000000-0000-0000-0000-000000000000"
+
+# Existing Power BI Premium capacity (P SKU)
+premium_capacity_name = "<your-premium-capacity-name>"
+
+# Fabric Administrators (permanent role) who will run Deploy_FUAM and own FUAM pipelines
+fuam_admin_user_upns = [
+  "fabric.admin@contoso.com",
+]
+
+# Leave empty on first apply. After installing the Capacity Metrics App, paste its workspace ID here and re-apply.
+capacity_metrics_workspace_id = ""
+
+# Turn on only after the Fabric admin team has reviewed `terraform plan` for these tenant-wide settings.
+manage_tenant_settings = false
+
+enable_key_vault = true
+key_vault_name   = "kv-contoso-fuam-prd"
+location         = "centralus"
