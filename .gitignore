@@ -1,7 +1,31 @@
+# Terraform working directory
 .terraform/
+
+# State (contains the service principal secret)
 *.tfstate
 *.tfstate.*
-*.tfvars
-!terraform.tfvars.example
+terraform.tfstate.d/
+
+# Plan files and plan/apply output (can contain sensitive values)
+tfplan
+*.tfplan
+*.plan
+plan.txt
+plan.json
+apply*.txt
+*.log
 crash.log
-.terraform.lock.hcl.bak
+crash.*.log
+
+# Real variable values
+*.tfvars
+*.tfvars.json
+!terraform.tfvars.example
+
+# Local overrides and CLI config
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc

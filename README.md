@@ -120,14 +120,12 @@ Change the parameters to the incremental values (`metric_days_in_scope = 2`, `ac
 - Validated with `terraform validate` using Terraform 1.16.5: fabric 1.14.0, azuread 3.10.0, azurerm 4.81.0, time 0.14.2. **Run a full `plan`/`apply` in a non-production tenant or on a Fabric trial capacity first.**
 - `notebooks/Deploy_FUAM.ipynb` is a copy of the upstream file (MIT license). To pick up a changed deploy notebook, replace the file and run `terraform apply -replace=fabric_notebook.deploy_fuam`.
 - The Fabric connection test runs when the connections are created (`WebForPipeline` connections don't support skipping it). Tenant settings must allow the SP before the connections are created; if the first apply fails here, wait a few minutes for settings to propagate and re-apply.
-- Dry run (`terraform plan`) passed in a test tenant: 24 resources to add, 0 to change, 0 to destroy. All four tenant settings resolved by title, and existing org-wide settings and security groups were preserved.
 - Private Link tenants need extra manual steps per the FUAM docs.
 
-## Lessons from a real `terraform apply` (test tenant)
+## Deployment considerations
 
-The test apply used an F4 capacity (no P SKU was available) and succeeded. The FUAM workspace, both connections, the uploaded notebook, the service principal, groups and 4 tenant settings were created. Both connections passed Fabric's connection test as the new service principal, and a second `terraform plan` showed **no changes**.
-
-- **Key Vault vs. Azure Policy:** a governance policy ("Disable public network access on Key Vaults", Modify effect) turned off public network access after the vault was created, and Terraform then got `403 ForbiddenByConnection` writing secrets. If your tenant has a similar policy, either:
+- **Key Vault and Azure Policy:** some organizations enforce a policy (for example "Disable public network access on Key Vaults", Modify effect) that switches off public network access after the vault is created. Terraform then gets `403 ForbiddenByConnection` when writing secrets. In that case, either:
   - set `enable_key_vault = false` (FUAM falls back to the notebook owner's identity for the Scanner API), or
   - deploy the vault with a private endpoint, run Terraform from a network that can reach it, and give FUAM a Fabric managed private endpoint to the vault.
 - **Existing FUAM installs:** if a `FUAM` workspace or the default `fuam … admin` connections already exist, the apply fails with `WorkspaceNameAlreadyExists` / `DuplicateConnectionName`. Either deploy side by side by setting `fuam_workspace_name`, `pbi_connection_name` and `fabric_connection_name` (the uploaded notebook is patched to match), or `terraform import` the existing items. Importing re-points the connection credentials to the Terraform-managed service principal.
+- **Plan files are sensitive:** `terraform plan -out tfplan` writes a binary plan that can contain secret values. It is git-ignored; never commit it, and delete it after applying.
